@@ -15,3 +15,11 @@ services:
     hostname: service2
     ports:
       - "1083:80"
+  app:
+    image: alykoff/checker-app:latest
+    ports:
+      - "18080:18080"
+    links:
+      - service1
+      - service2
+      - service3

@@ -12,7 +12,7 @@ class CheckerHealthController(
   private val checkerHealthService: CheckerHealthService
 ) {
   @GetMapping("/health")
-  // Flux doesn't work here, some bug with empty json
+  // Flux doesn't work here, mb some bug when we have empty Flux
   fun getHealths(): Mono<List<CheckerHealthResponse>> {
     return checkerHealthService.findAll()
       .map { it.toCheckerHealthResponse() }
