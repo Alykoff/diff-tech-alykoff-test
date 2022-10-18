@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <property name="CONSOLE_LOG_PATTERN"
+              value="%cyan(%date) %highlight(%-5level) [%blue(%thread)] [%green(%logger{36})] %msg %n"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <appender name="ASYNC_CONSOLE" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>1024</queueSize>
+        <appender-ref ref="CONSOLE"/>
+        <neverBlock>true</neverBlock>
+    </appender>
+
+    <logger name="com.alykoff" level="debug" />
+
+    <root level="DEBUG">
+        <appender-ref ref="ASYNC_CONSOLE"/>
+    </root>
+
+</configuration>

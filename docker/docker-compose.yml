@@ -1,0 +1,17 @@
+version: "3"
+services:
+  service1:
+    image: nginx
+    hostname: service1
+    ports:
+      - "1081:80"
+  service2:
+    image: nginx
+    hostname: service2
+    ports:
+      - "1082:80"
+  service3:
+    image: nginx
+    hostname: service2
+    ports:
+      - "1083:80"

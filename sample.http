@@ -1,0 +1,14 @@
+POST http://localhost:8080/setting
+Content-Type: application/json
+
+{
+  "urls": ["http://localhost:1081", "http://localhost:1082", "http://localhost:1083"],
+  "intervalMs": 10000
+}
+
+###
+GET http://localhost:8080/setting
+Accept: application/json
+
+###
+GET http://localhost:8080/health
