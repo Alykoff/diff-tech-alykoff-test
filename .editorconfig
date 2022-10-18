@@ -1,0 +1,25 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_size = 2
+indent_style = space
+insert_final_newline = false
+max_line_length = 120
+tab_width = 4
+
+[*.java]
+indent_size = 2
+tab_width = 2
+
+[{*.bash,*.sh,*.zsh,*.conf}]
+indent_size = 2
+tab_width = 2
+
+[{*.gradle.kts,*.kt,*.kts,*.main.kts,*.space.kts}]
+indent_size = 2
+tab_width = 2
+
+[{*.yaml,*.yml}]
+indent_size = 2
