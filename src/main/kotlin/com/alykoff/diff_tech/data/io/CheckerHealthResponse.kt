@@ -1,4 +1,4 @@
-package com.alykoff.diff_tech.data
+package com.alykoff.diff_tech.data.io
 
 import com.alykoff.diff_tech.entity.HealthStatus
 

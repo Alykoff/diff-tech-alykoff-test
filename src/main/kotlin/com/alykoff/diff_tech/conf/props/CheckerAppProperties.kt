@@ -1,7 +1,6 @@
 package com.alykoff.diff_tech.conf.props
 
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.context.annotation.Configuration
 import java.util.SortedSet
 
 @Suppress(names = ["SpringJavaInjectionPointsAutowiringInspection"])
@@ -11,5 +10,6 @@ data class CheckerAppProperties(
   val intervalMs: Long,
   val initDelayMs: Long,
   val httpConnectTimeoutMs: Long,
+  val httpTimeoutMs: Long,
   val httpClientExecutorThreads: Int
 )

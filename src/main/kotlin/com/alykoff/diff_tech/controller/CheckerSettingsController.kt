@@ -1,8 +1,8 @@
 package com.alykoff.diff_tech.controller
 
-import com.alykoff.diff_tech.data.CheckerSettingsRequest
-import com.alykoff.diff_tech.data.CheckerSettingsResponse
-import com.alykoff.diff_tech.data.toCheckerSettingsResponse
+import com.alykoff.diff_tech.data.io.CheckerSettingsRequest
+import com.alykoff.diff_tech.data.io.CheckerSettingsResponse
+import com.alykoff.diff_tech.data.io.toCheckerSettingsResponse
 import com.alykoff.diff_tech.service.CheckerEngine
 import com.alykoff.diff_tech.service.CheckerSettingsService
 import org.springframework.web.bind.annotation.GetMapping

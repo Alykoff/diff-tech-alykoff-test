@@ -1,6 +1,6 @@
 package com.alykoff.diff_tech.service.probe
 
-import arrow.core.sort
+import com.alykoff.diff_tech.conf.props.CheckerAppProperties
 import com.alykoff.diff_tech.data.UrlAndStatus
 import com.alykoff.diff_tech.entity.HealthStatus
 import com.alykoff.diff_tech.http.toHealthStatus
@@ -13,10 +13,16 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.time.Duration
+import java.time.temporal.ChronoUnit
 import java.util.SortedSet
+import java.util.function.Function
 
 @Service
-class HttpProbeService(private val httpClient: HttpClient): AbstractProbe() {
+class HttpProbeService(
+  private val httpClient: HttpClient,
+  private val checkerAppProperties: CheckerAppProperties
+): AbstractProbe() {
   override val name: String
     get() ="HttpProbe"
 
@@ -32,7 +38,10 @@ class HttpProbeService(private val httpClient: HttpClient): AbstractProbe() {
   override fun probeAsync(urls: List<String>): Flux<UrlAndStatus> {
     return urls.map { url ->
       return@map try {
-        HttpRequest.newBuilder().uri(URI.create(url)).build()
+        HttpRequest.newBuilder().uri(URI.create(url))
+          // set http timeout`
+          .timeout(Duration.of(checkerAppProperties.httpTimeoutMs, ChronoUnit.MILLIS))
+          .build()
           .let { request -> httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString()) }
           .toMono()
           .map { response -> UrlAndStatus(url, response.toHealthStatus()) }
@@ -42,6 +51,7 @@ class HttpProbeService(private val httpClient: HttpClient): AbstractProbe() {
         CheckerEngine.logger.debug(e) { "Problem when call url: $url" }
         Mono.just(UrlAndStatus(url, HealthStatus.DOWN))
       }
-    }.let { Flux.concat(it) }
+    }.let { Flux.fromIterable(it) }
+    .flatMap(Function.identity())
   }
 }

@@ -2,10 +2,11 @@ spring:
   application:
     name: df-checker
 server:
-  port: 8080
+  port: 18080
 checker:
   urls: []
   intervalMs: 2000
   initDelayMs: 100
   httpConnectTimeoutMs: 100
+  httpTimeoutMs: 100
   httpClientExecutorThreads: 4

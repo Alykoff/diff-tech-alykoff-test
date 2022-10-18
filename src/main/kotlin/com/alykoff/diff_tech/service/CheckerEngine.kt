@@ -2,12 +2,13 @@ package com.alykoff.diff_tech.service
 
 import arrow.core.Either
 import com.alykoff.diff_tech.conf.props.CheckerAppProperties
-import com.alykoff.diff_tech.data.CheckerSettingsRequest
+import com.alykoff.diff_tech.data.io.CheckerSettingsRequest
 import com.alykoff.diff_tech.data.UrlAndStatus
 import com.alykoff.diff_tech.entity.CheckerSettingsEntity
 import com.alykoff.diff_tech.entity.HealthEntity
 import com.alykoff.diff_tech.entity.HealthStatus
-import com.alykoff.diff_tech.exeption.CheckerError
+import com.alykoff.diff_tech.data.CheckerError
+import com.alykoff.diff_tech.exeption.CheckerLogicException
 import com.alykoff.diff_tech.exeption.CheckerValidationException
 import com.alykoff.diff_tech.service.probe.AbstractProbe
 import jakarta.annotation.PostConstruct
@@ -18,12 +19,16 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
+import java.lang.Long.min
+import java.time.Duration
+import java.time.temporal.ChronoUnit
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import java.util.function.Function
 
 typealias UrlsByProbeNames = Map<String, List<String>>
 typealias CheckerErrors = List<CheckerError>
@@ -92,10 +97,9 @@ class CheckerEngine(
     settingsRequest: CheckerSettingsRequest
   ): Either<CheckerErrors, UrlsByProbeNames> {
     val errors = mutableListOf<CheckerError>()
-    if (settingsRequest.intervalMs <= initCheckerAppProperties.httpConnectTimeoutMs) {
-      errors.add(CheckerError(
-        "Variable `intervalMs` is wrong, because intervalMs <= httpConnectTimeoutMs"
-      ))
+    val minTimeout = min(initCheckerAppProperties.httpConnectTimeoutMs, initCheckerAppProperties.httpTimeoutMs)
+    if (settingsRequest.intervalMs <= minTimeout) {
+      errors.add(CheckerError("Variable `intervalMs` is wrong, because intervalMs <= httpConnectTimeoutMs"))
     }
     val urlByProbeName = getUrlByProbeName(settingsRequest.urls)
     val urlsWithoutProb = urlByProbeName[probeNotFound]
@@ -123,7 +127,7 @@ class CheckerEngine(
     }
   }
 
-  @Suppress(names = ["SimpleRedundantLet"])
+  @Suppress(names = ["BlockingMethodInNonBlockingContext"])
   private fun refreshScheduler(
     setting: CheckerSettingsEntity,
     urlsByProbeNames: UrlsByProbeNames
@@ -133,44 +137,54 @@ class CheckerEngine(
       .toSet()
       .let { initHealths -> checkerHealthService.saveAll(initHealths) }
       .collectList()
-      .flatMap {
-        return@flatMap Mono.just(Any())
-          // for prevent race condition:
-          // manage changing settings refs only in one thread pool (schedulerChangerSingleThreadPool)
-          .publishOn(schedulerChangerSingleThreadPool)
-          .flatMap { checkerSettingsService.save(setting) }
-          .map { newSetting ->
-            scheduledFuture.getAndSet(
-              singleThreadExecutor.scheduleAtFixedRate({
-                logger.debug {
-                  "Next check, urls: ${setting.urls}, interval: ${setting.intervalMs}, id: ${setting.id}"
-                }
+      // for prevent race condition:
+      // manage changing settings refs only in one thread pool scheduler (schedulerChangerSingleThreadPool)
+      .publishOn(schedulerChangerSingleThreadPool)
+      .map {
+        val savedSetting = checkerSettingsService.save(setting)
+          // . we use block() method at that place, it's ok because we use the special thread pool;
+          // . don't expect that we'll have a lot of setting changes;
+          // . for the case set timeout, but in prod environment it should be setting at db side
+          .block(Duration.of(1L, ChronoUnit.MINUTES))
+          ?: throw CheckerLogicException("Setting didn't save")
+        recreateScheduler(savedSetting, urlsByProbeNames)
+        return@map savedSetting
+      }
+      // return manage to default scheduler
+      .publishOn(Schedulers.parallel())
+      .doOnError { e -> logger.error(e) { "Error when init scheduler" } }
+  }
 
-                startProbe(urlsByProbeNames)
-                  .map { checkerHealthService.save(HealthEntity(
-                    name = it.url,
-                    state = it.status,
-                    time = System.currentTimeMillis(),
-                    settingId = setting.id
-                  ))}.subscribe()
-              }, initCheckerAppProperties.initDelayMs, setting.intervalMs, TimeUnit.MILLISECONDS)
-            )?.let { oldTaskScheduler -> oldTaskScheduler.cancel(true) }
-            return@map newSetting
-          }.publishOn(Schedulers.parallel())
-      }.doOnError { e -> logger.error(e) { "Error when init scheduler" } }
+  @Suppress(names = ["SimpleRedundantLet"])
+  private fun recreateScheduler(
+    setting: CheckerSettingsEntity,
+    urlsByProbeNames: UrlsByProbeNames
+  ) {
+    scheduledFuture.getAndSet(
+      singleThreadExecutor.scheduleAtFixedRate({
+        logger.debug { "Next check, urls: ${setting.urls}, interval: ${setting.intervalMs}, id: ${setting.id}" }
+
+        startProbe(urlsByProbeNames)
+          .map { checkerHealthService.save(HealthEntity(
+            name = it.url,
+            state = it.status,
+            time = System.currentTimeMillis(),
+            settingId = setting.id
+          ))}.subscribe()
+      }, initCheckerAppProperties.initDelayMs, setting.intervalMs, TimeUnit.MILLISECONDS)
+    )?.let { oldTaskScheduler -> oldTaskScheduler.cancel(true) }
   }
 
   private fun startProbe(urlsByProbeNames: UrlsByProbeNames): Flux<UrlAndStatus> {
-    return Flux.fromIterable(
-      urlsByProbeNames.map { (probeName, urls) ->
+    return urlsByProbeNames.map { (probeName, urls) ->
         probeByName[probeName]
           ?.probeAsync(urls)
           ?: run {
             logger.error { "Impossible: probe with name: $probeName not found" }
             Flux.empty()
           }
-      }
-    ).flatMap { it }
+      }.let { Flux.fromIterable(it) }
+      .flatMap(Function.identity())
   }
 
   private fun initHealth(url: String, settingId: UUID): HealthEntity {

@@ -1,8 +1,7 @@
 package com.alykoff.diff_tech.controller
 
-import com.alykoff.diff_tech.data.CheckerHealthResponse
-import com.alykoff.diff_tech.data.toCheckerHealthResponse
-import com.alykoff.diff_tech.entity.HealthEntity
+import com.alykoff.diff_tech.data.io.CheckerHealthResponse
+import com.alykoff.diff_tech.data.io.toCheckerHealthResponse
 import com.alykoff.diff_tech.service.CheckerHealthService
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RestController

@@ -1,10 +1,8 @@
 package com.alykoff.diff_tech.repo
 
-import com.alykoff.diff_tech.conf.props.CheckerAppProperties
 import com.alykoff.diff_tech.entity.CheckerSettingsEntity
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
-import java.util.*
 import java.util.concurrent.atomic.AtomicReference
 
 @Suppress(names = ["SpringJavaInjectionPointsAutowiringInspection"])
