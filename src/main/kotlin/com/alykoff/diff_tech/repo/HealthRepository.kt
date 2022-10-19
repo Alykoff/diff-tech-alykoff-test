@@ -32,11 +32,9 @@ class HealthRepository {
     val settingId = settingsIds.iterator().next()
     healthByNameBySettingId.compute(settingId) { _, statusByUrl ->
       val newStatusByUrl = statusByUrl ?: ConcurrentHashMap<String, HealthEntity>()
-      val copyNewStatusByUrl = HashMap(newStatusByUrl)
-      newStatusByUrl.putAll(
-        savedHealth.filter { (copyNewStatusByUrl[it.name]?.time ?: Long.MIN_VALUE) <= it.time }
-          .associateBy { it.name }
-      )
+      savedHealth.filter { health -> (newStatusByUrl[health.name]?.time ?: Long.MIN_VALUE) <= health.time }
+        .associateBy { health -> health.name }
+        .let { newStatusByUrl.putAll(it) }
       return@compute newStatusByUrl
     }
     return savedHealth.toFlux()

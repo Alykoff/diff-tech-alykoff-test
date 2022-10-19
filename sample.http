@@ -11,4 +11,4 @@ GET http://localhost:18080/setting
 Accept: application/json
 
 ###
-GET http://localhost:18080/health
+GET http://localhost:18080/healths

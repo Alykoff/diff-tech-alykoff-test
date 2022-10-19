@@ -11,7 +11,7 @@ import reactor.core.publisher.Mono
 class CheckerHealthController(
   private val checkerHealthService: CheckerHealthService
 ) {
-  @GetMapping("/health")
+  @GetMapping("/healths")
   // Flux doesn't work here, mb some bug when we have empty Flux
   fun getHealths(): Mono<List<CheckerHealthResponse>> {
     return checkerHealthService.findAll()

@@ -1,12 +1,14 @@
 spring:
   application:
-    name: df-checker
+    name: checker-app
 server:
   port: 18080
 checker:
   urls: []
   intervalMs: 2000
   initDelayMs: 100
+  # also affected on the value of minimum interval
   httpConnectTimeoutMs: 100
+  # also affected on the value of minimum interval
   httpTimeoutMs: 100
   httpClientExecutorThreads: 4

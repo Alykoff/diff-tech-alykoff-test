@@ -19,7 +19,7 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
-import java.lang.Long.min
+import java.lang.Long.max
 import java.time.Duration
 import java.time.temporal.ChronoUnit
 import java.util.*
@@ -97,8 +97,12 @@ class CheckerEngine(
     settingsRequest: CheckerSettingsRequest
   ): Either<CheckerErrors, UrlsByProbeNames> {
     val errors = mutableListOf<CheckerError>()
-    val minTimeout = min(initCheckerAppProperties.httpConnectTimeoutMs, initCheckerAppProperties.httpTimeoutMs)
-    if (settingsRequest.intervalMs <= minTimeout) {
+    if (settingsRequest.intervalMs <= 0) {
+      errors.add(CheckerError("Setting parameter intervalMs should be > 0"))
+    }
+    // look up the maximum boundary for interval
+    val maxTimeout = max(initCheckerAppProperties.httpConnectTimeoutMs, initCheckerAppProperties.httpTimeoutMs)
+    if (settingsRequest.intervalMs <= maxTimeout) {
       errors.add(CheckerError("Variable `intervalMs` is wrong, because intervalMs <= httpConnectTimeoutMs"))
     }
     val urlByProbeName = getUrlByProbeName(settingsRequest.urls)
@@ -144,9 +148,9 @@ class CheckerEngine(
         val savedSetting = checkerSettingsService.save(setting)
           // . we use block() method at that place, it's ok because we use the special thread pool;
           // . don't expect that we'll have a lot of setting changes;
-          // . for the case set timeout, but in prod environment it should be setting at db side
+          // . for the case we are setting timeout, but in prod environment it should be setting at a db side
           .block(Duration.of(1L, ChronoUnit.MINUTES))
-          ?: throw CheckerLogicException("Setting didn't save")
+          ?: throw CheckerLogicException("Setting didn't save, didn't find entity after calling save method")
         recreateScheduler(savedSetting, urlsByProbeNames)
         return@map savedSetting
       }
