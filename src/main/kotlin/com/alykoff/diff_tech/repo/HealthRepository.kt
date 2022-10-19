@@ -47,6 +47,12 @@ class HealthRepository {
     return savedHealth.toFlux()
   }
 
+  fun removeBySettingId(settingId: UUID): Flux<HealthEntity> {
+    return healthByNameBySettingId.remove(settingId)?.let {
+      Flux.fromIterable(it.values)
+    } ?: Flux.empty()
+  }
+
   private fun fillHealthFromOldSetting(
     health: HealthEntity,
     prevStatusByName: Map<String, HealthEntity>

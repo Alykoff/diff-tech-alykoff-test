@@ -28,4 +28,8 @@ class CheckerHealthService(
   fun save(entities: HealthEntity): Flux<HealthEntity> {
     return healthRepository.saveAll(setOf(entities), null)
   }
+
+  fun removeBySettingId(settingId: UUID): Flux<HealthEntity> {
+    return healthRepository.removeBySettingId(settingId)
+  }
 }

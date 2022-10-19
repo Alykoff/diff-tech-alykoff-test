@@ -12,7 +12,7 @@
 
     <logger name="com.alykoff" level="debug" />
 
-    <root level="DEBUG">
+    <root level="info">
         <appender-ref ref="ASYNC_CONSOLE"/>
     </root>
 

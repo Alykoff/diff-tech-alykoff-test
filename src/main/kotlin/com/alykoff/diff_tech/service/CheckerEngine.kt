@@ -19,7 +19,6 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
-import reactor.kotlin.core.publisher.toFlux
 import java.lang.Long.max
 import java.time.Duration
 import java.time.temporal.ChronoUnit
@@ -143,18 +142,21 @@ class CheckerEngine(
     val newHealths = newSetting.urls.map { url -> initHealth(url, newSetting.id) }.toSet()
     return checkerSettingsService.getActualSetting()
       .map { Optional.of(it) }
-      .toFlux()
+      // when we just started we don't have any setting, so we should handle default branch
       .defaultIfEmpty(Optional.empty<CheckerSettingsEntity>())
       // we save the first health entities before create setting entity,
       // and if some exception apparent here we stay keep these entities,
       // to prevent this in prod env we may create special scheduling task
       // for removing handling entities
-      .flatMap { prevSetting -> checkerHealthService.saveAll(newHealths, prevSetting.getOrNull()?.id) }
-      .collectList()
+      .flatMap { prevSetting ->
+        checkerHealthService.saveAll(newHealths, prevSetting.getOrNull()?.id)
+          .collectList()
+          .map { prevSetting.map { it.id } }
+      }
       // for prevent race condition:
       // manage changing settings refs only in one thread pool scheduler (schedulerChangerSingleThreadPool)
       .publishOn(schedulerChangerSingleThreadPool)
-      .map {
+      .map { prevSettingId ->
         val savedSetting = checkerSettingsService.save(newSetting)
           // . we use block() method at this place, it's ok because we use the special thread pool,
           //     and we don't expect that we'll have a lot of setting changes;
@@ -165,6 +167,11 @@ class CheckerEngine(
 
         recreateProbeTasks(savedSetting, urlsByProbeNames)
 
+        // remove old health data by async
+        prevSettingId.getOrNull()?.run {
+          checkerHealthService.removeBySettingId(this)
+            .subscribe()
+        }
         return@map savedSetting
       }
       // return manage to default scheduler
