@@ -1,5 +1,5 @@
 
-### Descripton
+### Description
 ```
 Реализовать сервис, периодически опрашивающий определённый набор URL’ов на предмет доступности.
 Управление сервисом (настройка интервала опроса, списка опрашиваемых URL) и получение результатов работы должны осуществляться посредством обращения к сервису с помощью HTTP-запросов.
@@ -40,5 +40,5 @@ curl -XPOST 'http://localhost:18080/setting' -H 'Content-Type: application/json'
 # get current setting
 curl 'http://localhost:18080/setting' 
 # get health
-curl 'http://localhost:18080/health'
+curl 'http://localhost:18080/healths'
 ```
