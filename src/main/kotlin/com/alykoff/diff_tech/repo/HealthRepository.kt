@@ -1,6 +1,7 @@
 package com.alykoff.diff_tech.repo
 
 import com.alykoff.diff_tech.entity.HealthEntity
+import com.alykoff.diff_tech.entity.HealthStatus
 import mu.KLogging
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Flux
@@ -21,7 +22,7 @@ class HealthRepository {
       .toFlux()
   }
 
-  fun saveAll(savedHealth: Set<HealthEntity>): Flux<HealthEntity> {
+  fun saveAll(savedHealth: Set<HealthEntity>, oldSettingId: UUID?): Flux<HealthEntity> {
     if (savedHealth.isEmpty()) return Flux.empty()
 
     val settingsIds = savedHealth.map { it.settingId }.toSet()
@@ -30,13 +31,36 @@ class HealthRepository {
       return Flux.empty()
     }
     val settingId = settingsIds.iterator().next()
+    val prevStatusByName = oldSettingId
+      ?.let { healthByNameBySettingId[it] }
+      ?.let { ConcurrentHashMap(it) }
+      ?.filterValues { it.state != HealthStatus.UNKNOWN }
+      ?: ConcurrentHashMap()
     healthByNameBySettingId.compute(settingId) { _, statusByUrl ->
       val newStatusByUrl = statusByUrl ?: ConcurrentHashMap<String, HealthEntity>()
-      savedHealth.filter { health -> (newStatusByUrl[health.name]?.time ?: Long.MIN_VALUE) <= health.time }
+      savedHealth.map { health -> fillHealthFromOldSetting(health, prevStatusByName) }
+        .filter { health -> (newStatusByUrl[health.name]?.time ?: Long.MIN_VALUE) <= health.time }
         .associateBy { health -> health.name }
         .let { newStatusByUrl.putAll(it) }
       return@compute newStatusByUrl
     }
     return savedHealth.toFlux()
+  }
+
+  private fun fillHealthFromOldSetting(
+    health: HealthEntity,
+    prevStatusByName: Map<String, HealthEntity>
+  ): HealthEntity {
+    val healthsFromOldSetting = prevStatusByName[health.name]
+    // this behaviour maybe the different ones;
+    // use the simplest merge strategy.
+    val shouldGetOldState = healthsFromOldSetting?.let { oldHealth ->
+      (health.state == HealthStatus.UNKNOWN) || (oldHealth.time > health.time)
+    } ?: false
+    return if (shouldGetOldState) {
+      health.copy(state = healthsFromOldSetting?.state ?: health.state)
+    } else {
+      health
+    }
   }
 }

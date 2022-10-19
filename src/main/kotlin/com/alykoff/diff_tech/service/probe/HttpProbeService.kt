@@ -4,7 +4,7 @@ import com.alykoff.diff_tech.conf.props.CheckerAppProperties
 import com.alykoff.diff_tech.data.UrlAndStatus
 import com.alykoff.diff_tech.entity.HealthStatus
 import com.alykoff.diff_tech.http.toHealthStatus
-import com.alykoff.diff_tech.service.CheckerEngine
+import mu.KLogging
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -23,6 +23,7 @@ class HttpProbeService(
   private val httpClient: HttpClient,
   private val checkerAppProperties: CheckerAppProperties
 ): AbstractProbe() {
+  companion object: KLogging()
   override val name: String
     get() ="HttpProbe"
 
@@ -45,10 +46,10 @@ class HttpProbeService(
           .let { request -> httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString()) }
           .toMono()
           .map { response -> UrlAndStatus(url, response.toHealthStatus()) }
-          .doOnError { e -> CheckerEngine.logger.debug(e) { "Error when call url: $url" } }
+          .doOnError { e -> logger.debug(e) { "Error when call url: $url" } }
           .onErrorReturn(UrlAndStatus(url, HealthStatus.DOWN))
       } catch (e: Exception) {
-        CheckerEngine.logger.debug(e) { "Problem when call url: $url" }
+        logger.debug(e) { "Problem when call url: $url" }
         Mono.just(UrlAndStatus(url, HealthStatus.DOWN))
       }
     }.let { Flux.fromIterable(it) }

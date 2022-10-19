@@ -19,6 +19,7 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
+import reactor.kotlin.core.publisher.toFlux
 import java.lang.Long.max
 import java.time.Duration
 import java.time.temporal.ChronoUnit
@@ -29,6 +30,7 @@ import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.Function
+import kotlin.jvm.optionals.getOrNull
 
 typealias UrlsByProbeNames = Map<String, List<String>>
 typealias CheckerErrors = List<CheckerError>
@@ -131,28 +133,38 @@ class CheckerEngine(
     }
   }
 
+  @OptIn(ExperimentalStdlibApi::class)
   @Suppress(names = ["BlockingMethodInNonBlockingContext"])
   private fun refreshScheduler(
-    setting: CheckerSettingsEntity,
+    newSetting: CheckerSettingsEntity,
     urlsByProbeNames: UrlsByProbeNames
   ): Mono<CheckerSettingsEntity> {
     logger.debug { "Start refresh health scheduler" }
-    return setting.urls.map { url -> initHealth(url, setting.id) }
-      .toSet()
-      .let { initHealths -> checkerHealthService.saveAll(initHealths) }
+    val newHealths = newSetting.urls.map { url -> initHealth(url, newSetting.id) }.toSet()
+    return checkerSettingsService.getActualSetting()
+      .map { Optional.of(it) }
+      .toFlux()
+      .defaultIfEmpty(Optional.empty<CheckerSettingsEntity>())
+      // we save the first health entities before create setting entity,
+      // and if some exception apparent here we stay keep these entities,
+      // to prevent this in prod env we may create special scheduling task
+      // for removing handling entities
+      .flatMap { prevSetting -> checkerHealthService.saveAll(newHealths, prevSetting.getOrNull()?.id) }
       .collectList()
       // for prevent race condition:
       // manage changing settings refs only in one thread pool scheduler (schedulerChangerSingleThreadPool)
       .publishOn(schedulerChangerSingleThreadPool)
       .map {
-        val savedSetting = checkerSettingsService.save(setting)
+        val savedSetting = checkerSettingsService.save(newSetting)
           // . we use block() method at this place, it's ok because we use the special thread pool,
           //     and we don't expect that we'll have a lot of setting changes;
           // . but if we have a lot of replicas we should also add read/write replica roles in our app;
           // . for the case we are setting timeout, but in prod environment it should be setting at a db side.
           .block(Duration.of(1L, ChronoUnit.MINUTES))
           ?: throw CheckerLogicException("Setting didn't save, didn't find entity after calling save method")
-        recreateScheduler(savedSetting, urlsByProbeNames)
+
+        recreateProbeTasks(savedSetting, urlsByProbeNames)
+
         return@map savedSetting
       }
       // return manage to default scheduler
@@ -161,7 +173,7 @@ class CheckerEngine(
   }
 
   @Suppress(names = ["SimpleRedundantLet"])
-  private fun recreateScheduler(
+  private fun recreateProbeTasks(
     setting: CheckerSettingsEntity,
     urlsByProbeNames: UrlsByProbeNames
   ) {

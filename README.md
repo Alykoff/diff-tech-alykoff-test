@@ -14,6 +14,7 @@ Frameworks: spring, micronaut, ktor
 
 ### Requirements
  * jdk 17+
+ * kotlin 1.7.10+
  * docker engine version 20.10.13+ (with running docker demon)
  * docker-compose 2.3.3+
  * tested at: gnu/linux, windows11
@@ -41,4 +42,12 @@ curl -XPOST 'http://localhost:18080/setting' -H 'Content-Type: application/json'
 curl 'http://localhost:18080/setting' 
 # get health
 curl 'http://localhost:18080/healths'
+```
+
+### Problem with docker machine at windows11 wsl2 subsystem
+There are some IO issue with nginx docker container under docker-machine win11 with wsl2 subsystem. Nginx container has a small chance to reject some http requests.
+Guess it may be connected with this [issue](https://github.com/microsoft/WSL/issues/4197) 
+To prevent it you may use a simple python3 file server running in special directory:
+```sh
+python3 -m http.server
 ```

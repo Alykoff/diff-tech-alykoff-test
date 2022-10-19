@@ -6,6 +6,7 @@ import mu.KLogging
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Flux
 import reactor.kotlin.core.publisher.toFlux
+import java.util.*
 
 @Service
 class CheckerHealthService(
@@ -20,11 +21,11 @@ class CheckerHealthService(
       .flatMap { setting -> healthRepository.findAllBySettingId(setting.id) }
   }
 
-  fun saveAll(entities: Set<HealthEntity>): Flux<HealthEntity> {
-    return healthRepository.saveAll(entities)
+  fun saveAll(entities: Set<HealthEntity>, copyLastHealthFromConfId: UUID?): Flux<HealthEntity> {
+    return healthRepository.saveAll(entities, copyLastHealthFromConfId)
   }
 
   fun save(entities: HealthEntity): Flux<HealthEntity> {
-    return healthRepository.saveAll(setOf(entities))
+    return healthRepository.saveAll(setOf(entities), null)
   }
 }

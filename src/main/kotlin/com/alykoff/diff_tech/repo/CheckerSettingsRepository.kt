@@ -11,7 +11,7 @@ class CheckerSettingsRepository {
   private val ref: AtomicReference<CheckerSettingsEntity> = AtomicReference<CheckerSettingsEntity>()
 
   fun getLast(): Mono<CheckerSettingsEntity> {
-    return Mono.just(ref.get())
+    return ref.get()?.let { Mono.just(it) } ?: Mono.empty()
   }
 
   fun save(newEntity: CheckerSettingsEntity): Mono<CheckerSettingsEntity> {
