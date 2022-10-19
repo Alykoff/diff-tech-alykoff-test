@@ -1,6 +1,6 @@
 
 ### Description
-```
+```text
 Реализовать сервис, периодически опрашивающий определённый набор URL’ов на предмет доступности.
 Управление сервисом (настройка интервала опроса, списка опрашиваемых URL) и получение результатов работы должны осуществляться посредством обращения к сервису с помощью HTTP-запросов.
 Хранение результатов и набора url’ов можно реализовать inmemory, вместо бд.
@@ -23,11 +23,13 @@ Frameworks: spring, micronaut, ktor
 
 ##### Using docker-compose
 ```shell
+./gradlew build
 ./gradlew bootBuildImage
 docker-compose -f ./docker/docker-compose.yml up
 ```
 ##### Using gradlew only
 ```shell
+./gradlew build
 ./gradlew bootRun
 ```
 
@@ -48,6 +50,6 @@ curl 'http://localhost:18080/healths'
 There are some IO issue with nginx docker container under docker-machine win11 with wsl2 subsystem. Nginx container has a small chance to reject some http requests.
 Guess it may be connected with this [issue](https://github.com/microsoft/WSL/issues/4197) 
 To prevent it you may use a simple python3 file server running in special directory:
-```sh
+```shell
 python3 -m http.server
 ```
