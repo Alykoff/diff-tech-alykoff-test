@@ -146,9 +146,10 @@ class CheckerEngine(
       .publishOn(schedulerChangerSingleThreadPool)
       .map {
         val savedSetting = checkerSettingsService.save(setting)
-          // . we use block() method at that place, it's ok because we use the special thread pool;
-          // . don't expect that we'll have a lot of setting changes;
-          // . for the case we are setting timeout, but in prod environment it should be setting at a db side
+          // . we use block() method at this place, it's ok because we use the special thread pool,
+          //     and we don't expect that we'll have a lot of setting changes;
+          // . but if we have a lot of replicas we should also add read/write replica roles in our app;
+          // . for the case we are setting timeout, but in prod environment it should be setting at a db side.
           .block(Duration.of(1L, ChronoUnit.MINUTES))
           ?: throw CheckerLogicException("Setting didn't save, didn't find entity after calling save method")
         recreateScheduler(savedSetting, urlsByProbeNames)
